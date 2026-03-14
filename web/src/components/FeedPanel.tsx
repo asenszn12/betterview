@@ -60,9 +60,15 @@ function FeedItemCard({
 
   if (postUrl) {
     return (
-      <a href={postUrl} target="_blank" rel="noopener noreferrer" className="feed-item feed-item-clickable">
+      <article
+        className="feed-item feed-item-clickable"
+        role="link"
+        tabIndex={0}
+        onClick={() => window.open(postUrl, '_blank', 'noopener,noreferrer')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open(postUrl, '_blank', 'noopener,noreferrer'); } }}
+      >
         {content}
-      </a>
+      </article>
     );
   }
   return <article className="feed-item">{content}</article>;
