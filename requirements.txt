@@ -1,0 +1,2 @@
+ode telethon
+deep-translator
