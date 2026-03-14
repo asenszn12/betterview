@@ -1,0 +1,128 @@
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.status-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--live-green);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.status-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--live-green);
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-incident {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.status-incident-icon {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.status-incident-time {
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.status-incident-level {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.status-incident-level.level-high {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent-orange);
+}
+
+.status-incident-level.level-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--critical);
+}
+
+.status-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.status-risk {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.status-risk strong {
+  color: var(--accent-red);
+  margin: 0 4px;
+}
+
+.status-risk-label {
+  color: var(--critical);
+  font-weight: 600;
+}
+
+.status-risk-help {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-risk-help:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.status-right {
+  flex: 1;
+  min-width: 80px;
+}

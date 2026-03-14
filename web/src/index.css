@@ -1,0 +1,82 @@
+:root {
+  --bg-deep: #0a0b0f;
+  --bg-panel: #0f1117;
+  --bg-elevated: #14171f;
+  --border: #1e2330;
+  --text: #a0aec0;
+  --text-bright: #e2e8f0;
+  --accent-blue: #60a5fa;
+  --accent-cyan: #22d3ee;
+  --accent-purple: #a78bfa;
+  --accent-red: #f87171;
+  --accent-orange: #fb923c;
+  --accent-yellow: #facc15;
+  --live-green: #4ade80;
+  --critical: #ef4444;
+  --high: #f59e0b;
+  --low: #eab308;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Scan-line overlay */
+.terminal-scanline::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  z-index: 1000;
+}
+
+/* Corner data stream overlay */
+.corner-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(10, 11, 15, 0.9), transparent);
+  z-index: 999;
+}
+
+.corner-overlay::before {
+  content: 'BETTERVIEW TERMINAL v1.0 | DATA STREAM ACTIVE';
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--accent-blue);
+  opacity: 0.7;
+}
