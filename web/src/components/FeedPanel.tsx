@@ -25,16 +25,17 @@ function FeedItemCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const text = expanded || !isLong ? displayText : displayText.slice(0, MAX_TEXT_PREVIEW) + (displayText.length > MAX_TEXT_PREVIEW ? '…' : '');
+  const postUrl = msg.url || (channelUrl ? `${channelUrl}/${msg.message_id}` : null);
 
-  return (
-    <article className="feed-item">
+  const content = (
+    <>
       <div className="feed-item-header">
         <div className="feed-item-icon-wrap">
           <TelegramIcon className="feed-item-telegram-icon" />
         </div>
         <div className="feed-item-meta">
           {channelUrl ? (
-            <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="feed-item-sender feed-item-sender-link">
+            <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="feed-item-sender feed-item-sender-link" onClick={(e) => e.stopPropagation()}>
               {channelName}
             </a>
           ) : (
@@ -50,17 +51,21 @@ function FeedItemCard({
       </div>
       <p className="feed-item-text">{text}</p>
       {isLong && !expanded && (
-        <button type="button" className="feed-item-show-more" onClick={() => setExpanded(true)}>
+        <button type="button" className="feed-item-show-more" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(true); }}>
           Show more
         </button>
       )}
-      {msg.url && (
-        <a href={msg.url} target="_blank" rel="noopener noreferrer" className="feed-item-link">
-          View on Telegram →
-        </a>
-      )}
-    </article>
+    </>
   );
+
+  if (postUrl) {
+    return (
+      <a href={postUrl} target="_blank" rel="noopener noreferrer" className="feed-item feed-item-clickable">
+        {content}
+      </a>
+    );
+  }
+  return <article className="feed-item">{content}</article>;
 }
 
 function formatTimeAgo(iso: string): string {
@@ -147,16 +152,12 @@ export function FeedPanel() {
         <span className="feed-toolbar-icon" aria-hidden>⊞</span>
         <span className="feed-toolbar-icon" aria-hidden>▤</span>
         <span className="feed-toolbar-icon feed-toolbar-telegram" aria-hidden><TelegramIcon /></span>
-        <span className="feed-toolbar-icon" aria-hidden>👁</span>
-        <span className="feed-toolbar-icon" aria-hidden>👤</span>
         <input type="search" placeholder="Q Search..." className="feed-search" aria-label="Search feed" />
       </div>
       <div className="feed-filters">
         <button type="button" className="feed-filter">Critical</button>
         <button type="button" className="feed-filter">High</button>
         <button type="button" className="feed-filter">Low</button>
-        <button type="button" className="feed-filter">+ Topic</button>
-        <button type="button" className="feed-filter">+ Category</button>
         <button type="button" className="feed-filter">+ Country</button>
         <button type="button" className="feed-filter feed-settings" aria-label="Settings">⚙</button>
       </div>
