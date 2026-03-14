@@ -1,7 +1,67 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { TelegramMessage } from '../lib/supabase';
+import { TelegramIcon } from './TelegramIcon';
 import './FeedPanel.css';
+
+const MAX_TEXT_PREVIEW = 320;
+
+function FeedItemCard({
+  msg,
+  level,
+  displayText,
+  channelName,
+  channelUrl,
+  isLong,
+  formatTimeAgo,
+}: {
+  msg: TelegramMessage;
+  level: 'CRITICAL' | 'HIGH' | 'LOW';
+  displayText: string;
+  channelName: string;
+  channelUrl: string | null;
+  isLong: boolean;
+  formatTimeAgo: (iso: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const text = expanded || !isLong ? displayText : displayText.slice(0, MAX_TEXT_PREVIEW) + (displayText.length > MAX_TEXT_PREVIEW ? '…' : '');
+
+  return (
+    <article className="feed-item">
+      <div className="feed-item-header">
+        <div className="feed-item-icon-wrap">
+          <TelegramIcon className="feed-item-telegram-icon" />
+        </div>
+        <div className="feed-item-meta">
+          {channelUrl ? (
+            <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="feed-item-sender feed-item-sender-link">
+              {channelName}
+            </a>
+          ) : (
+            <span className="feed-item-sender">{channelName}</span>
+          )}
+          <span className={`feed-item-level level-${level.toLowerCase()}`}>{level}</span>
+          <span className="feed-item-time">{formatTimeAgo(msg.date)}</span>
+        </div>
+      </div>
+      <div className="feed-item-tags">
+        <span className={`feed-tag feed-tag-${level.toLowerCase()}`}>{level}</span>
+        <span className="feed-tag feed-tag-telegram">TELEGRAM</span>
+      </div>
+      <p className="feed-item-text">{text}</p>
+      {isLong && !expanded && (
+        <button type="button" className="feed-item-show-more" onClick={() => setExpanded(true)}>
+          Show more
+        </button>
+      )}
+      {msg.url && (
+        <a href={msg.url} target="_blank" rel="noopener noreferrer" className="feed-item-link">
+          View on Telegram →
+        </a>
+      )}
+    </article>
+  );
+}
 
 function formatTimeAgo(iso: string): string {
   try {
@@ -40,7 +100,7 @@ export function FeedPanel() {
           channel_title: 'Betterview Monitor',
           message_id: 0,
           date: new Date().toISOString(),
-          text: 'Connect Supabase to show live Telegram feed. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env and run the scraper with --supabase.',
+          text: 'Connect Supabase to show live Telegram feed. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to web/.env and run the scraper with --supabase.',
           text_translated: null,
           views: null,
           forwards: null,
@@ -51,34 +111,31 @@ export function FeedPanel() {
       return;
     }
 
+    const client = supabase;
+
     const fetchMessages = async () => {
       setLoading(true);
       setError(null);
-      const { data, error: e } = await supabase
+      const { data, error: e } = await client
         .from('telegram_messages')
         .select('*')
         .order('date', { ascending: false })
-        .limit(50);
+        .limit(100);
       setLoading(false);
       if (e) {
-        setError(e.message);
+        const msg = e.message || '';
+        if (msg.includes('schema cache') || msg.includes('does not exist') || msg.includes('relation') || msg.includes('telegram')) {
+          setError('Table not found. In Supabase go to SQL Editor, run the script in betterview/supabase/schema.sql to create the telegram_messages table, then run the Telegram scraper with --supabase.');
+        } else {
+          setError(msg);
+        }
         return;
       }
-      setMessages((data as TelegramMessage[]) || []);
+      const list = (data as TelegramMessage[]) || [];
+      setMessages(list);
     };
 
     fetchMessages();
-
-    const channel = supabase
-      .channel('telegram_messages_changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'telegram_messages' }, () => {
-        fetchMessages();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   return (
@@ -88,8 +145,8 @@ export function FeedPanel() {
       </div>
       <div className="feed-toolbar">
         <span className="feed-toolbar-icon" aria-hidden>⊞</span>
-        <span className="feed-toolbar-icon" aria-hidden>✕</span>
         <span className="feed-toolbar-icon" aria-hidden>▤</span>
+        <span className="feed-toolbar-icon feed-toolbar-telegram" aria-hidden><TelegramIcon /></span>
         <span className="feed-toolbar-icon" aria-hidden>👁</span>
         <span className="feed-toolbar-icon" aria-hidden>👤</span>
         <input type="search" placeholder="Q Search..." className="feed-search" aria-label="Search feed" />
@@ -118,30 +175,20 @@ export function FeedPanel() {
         {messages.map((msg) => {
           const level = messageToLevel(msg);
           const displayText = msg.text_translated || msg.text;
-          const handle = msg.channel_username ? `@${msg.channel_username}` : '';
-          const avatar = (msg.channel_title || msg.channel_username || '?').slice(0, 2).toUpperCase();
+          const channelName = msg.channel_title || msg.channel_username || 'Telegram';
+          const channelUrl = msg.channel_username ? `https://t.me/${msg.channel_username}` : null;
+          const isLong = displayText.length > MAX_TEXT_PREVIEW;
           return (
-            <article key={msg.id} className="feed-item">
-              <div className="feed-item-header">
-                <div className="feed-item-avatar">{avatar}</div>
-                <div className="feed-item-meta">
-                  <span className="feed-item-sender">{msg.channel_title || msg.channel_username || 'Telegram'}</span>
-                  <span className="feed-item-handle">{handle}</span>
-                  <span className={`feed-item-level level-${level.toLowerCase()}`}>{level} REP</span>
-                  <span className="feed-item-time">{formatTimeAgo(msg.date)}</span>
-                </div>
-              </div>
-              <div className="feed-item-tags">
-                <span className={`feed-tag feed-tag-${level.toLowerCase()}`}>{level}</span>
-                <span className="feed-tag feed-tag-telegram">TELEGRAM</span>
-              </div>
-              <p className="feed-item-text">{displayText}</p>
-              {msg.url && (
-                <a href={msg.url} target="_blank" rel="noopener noreferrer" className="feed-item-link">
-                  View on Telegram →
-                </a>
-              )}
-            </article>
+            <FeedItemCard
+              key={msg.id}
+              msg={msg}
+              level={level}
+              displayText={displayText}
+              channelName={channelName}
+              channelUrl={channelUrl}
+              isLong={isLong}
+              formatTimeAgo={formatTimeAgo}
+            />
           );
         })}
       </div>
