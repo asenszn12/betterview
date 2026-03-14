@@ -15,6 +15,7 @@ export interface ThunderdomeMessage {
   longitude: number;
   message_text: string;
   severity: MessageSeverity;
+  telegram_url?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +183,7 @@ export function Thunderdome() {
     const fetchMessages = async () => {
       const { data, error } = await client
         .from('messages')
-        .select('id, latitude, longitude, message_text, severity')
+        .select('id, latitude, longitude, message_text, severity, telegram_url')
         .limit(500);
 
       if (!error && data?.length) {
@@ -193,6 +194,7 @@ export function Thunderdome() {
             longitude: Number(row.longitude),
             message_text: row.message_text ?? '',
             severity: (row.severity ?? 'low') as MessageSeverity,
+            telegram_url: row.telegram_url ?? null,
           }))
         );
       }
@@ -300,6 +302,16 @@ export function Thunderdome() {
           role="tooltip"
         >
           <div className="thunderdome-signal-tooltip-severity">{hoveredMessage.severity}</div>
+          {hoveredMessage.telegram_url && (
+            <a
+              className="thunderdome-signal-tooltip-link"
+              href={hoveredMessage.telegram_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on Telegram
+            </a>
+          )}
           <div className="thunderdome-signal-tooltip-text">{hoveredMessage.message_text}</div>
         </div>
       )}

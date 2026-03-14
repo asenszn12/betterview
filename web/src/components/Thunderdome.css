@@ -80,6 +80,18 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.thunderdome-signal-tooltip-link {
+  display: inline-block;
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+.thunderdome-signal-tooltip-link:hover {
+  text-decoration: underline;
+}
+
 .thunderdome-signal-tooltip-text {
   color: rgba(255, 255, 255, 0.95);
   word-break: break-word;
