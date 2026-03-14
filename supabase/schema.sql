@@ -24,6 +24,7 @@ create index if not exists idx_telegram_messages_channel on public.telegram_mess
 -- Allow anonymous read (dashboard uses anon key). Scraper uses service_role key (bypasses RLS).
 alter table public.telegram_messages enable row level security;
 
+drop policy if exists "Allow public read" on public.telegram_messages;
 create policy "Allow public read"
   on public.telegram_messages for select
   using (true);
