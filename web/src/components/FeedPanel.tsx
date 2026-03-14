@@ -196,7 +196,6 @@ export function FeedPanel() {
         <button type="button" className="feed-filter">Critical</button>
         <button type="button" className="feed-filter">High</button>
         <button type="button" className="feed-filter">Low</button>
-        <button type="button" className="feed-filter">+ Country</button>
         <button type="button" className="feed-filter feed-settings" aria-label="Settings">⚙</button>
       </div>
       <div className="feed-list">

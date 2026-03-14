@@ -2,8 +2,13 @@ import { useState } from 'react';
 import { BetterviewWordmark } from './BetterviewWordmark';
 import './Header.css';
 
-const NAV = ['TERMINAL', 'FEED', 'MONITOR'] as const;
-type NavTab = (typeof NAV)[number];
+export const NAV = ['TERMINAL', 'MONITOR'] as const;
+export type NavTab = (typeof NAV)[number];
+
+interface HeaderProps {
+  activeTab?: NavTab;
+  onTabChange?: (tab: NavTab) => void;
+}
 
 function LogoIcon() {
   return (
@@ -21,8 +26,10 @@ function LogoIcon() {
   );
 }
 
-export function Header() {
-  const [activeTab, setActiveTab] = useState<NavTab>('TERMINAL');
+export function Header({ activeTab: controlledTab, onTabChange }: HeaderProps) {
+  const [internalTab, setInternalTab] = useState<NavTab>('TERMINAL');
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = onTabChange ?? setInternalTab;
   const [lastUpdate] = useState(() => new Date());
   const [logoError, setLogoError] = useState(false);
 
