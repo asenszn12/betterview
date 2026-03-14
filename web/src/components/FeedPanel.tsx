@@ -1,45 +1,90 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import type { TelegramMessage } from '../lib/supabase';
 import './FeedPanel.css';
 
-const FEED_ITEMS = [
-  {
-    id: 1,
-    sender: 'Betterview Monitor',
-    handle: '@bv_intel',
-    level: 'CRITICAL',
-    tags: ['CRITICAL', 'SYSTEM'],
-    text: 'ALERT: Potential critical incidence detected in simulated European grid sector. Source analysis from Telegram channels indicates potential system breach.',
-    link: '#',
-    avatar: 'BV',
-  },
-  {
-    id: 2,
-    sender: 'War Monitor',
-    handle: '@warmonitors',
-    level: 'HIGH',
-    tags: ['TWEET', 'HIGH', 'WORLD'],
-    text: '⚡️ Iranian missile Impacts in the Negev, Israel. Multiple interceptions reported.',
-    link: '#',
-    avatar: 'WM',
-  },
-  {
-    id: 3,
-    sender: 'NEXTA Live',
-    handle: '@nexta_live',
-    level: 'HIGH',
-    tags: ['TELEGRAM', 'HIGH'],
-    text: 'Russia receives $150 million in additional oil revenues per day thanks to the war in the Middle East — Financial Times.',
-    link: '#',
-    avatar: 'NL',
-  },
-];
+function formatTimeAgo(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (sec < 60) return 'now';
+    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
+    return `${Math.floor(sec / 86400)}d`;
+  } catch {
+    return 'now';
+  }
+}
+
+function messageToLevel(_m: TelegramMessage): 'CRITICAL' | 'HIGH' | 'LOW' {
+  const t = (_m.text_translated || _m.text).toLowerCase();
+  if (t.includes('critical') || t.includes('breaking') || t.includes('alert')) return 'CRITICAL';
+  if (t.includes('strike') || t.includes('missile') || t.includes('attack')) return 'HIGH';
+  return 'LOW';
+}
 
 export function FeedPanel() {
+  const [messages, setMessages] = useState<TelegramMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      setMessages([
+        {
+          id: '1',
+          channel_id: 0,
+          channel_username: 'bv_intel',
+          channel_title: 'Betterview Monitor',
+          message_id: 0,
+          date: new Date().toISOString(),
+          text: 'Connect Supabase to show live Telegram feed. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env and run the scraper with --supabase.',
+          text_translated: null,
+          views: null,
+          forwards: null,
+          url: null,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
+    const fetchMessages = async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: e } = await supabase
+        .from('telegram_messages')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(50);
+      setLoading(false);
+      if (e) {
+        setError(e.message);
+        return;
+      }
+      setMessages((data as TelegramMessage[]) || []);
+    };
+
+    fetchMessages();
+
+    const channel = supabase
+      .channel('telegram_messages_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'telegram_messages' }, () => {
+        fetchMessages();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <aside className="feed-panel">
       <div className="feed-tabs">
         <button type="button" className="feed-tab active">FEED</button>
-        <button type="button" className="feed-tab">WHALE TRACKER</button>
-        <button type="button" className="feed-tab">FLIGHTS (15)</button>
       </div>
       <div className="feed-toolbar">
         <span className="feed-toolbar-icon" aria-hidden>⊞</span>
@@ -59,26 +104,46 @@ export function FeedPanel() {
         <button type="button" className="feed-filter feed-settings" aria-label="Settings">⚙</button>
       </div>
       <div className="feed-list">
-        {FEED_ITEMS.map((item) => (
-          <article key={item.id} className="feed-item">
-            <div className="feed-item-header">
-              <div className="feed-item-avatar">{item.avatar}</div>
-              <div className="feed-item-meta">
-                <span className="feed-item-sender">{item.sender}</span>
-                <span className="feed-item-handle">{item.handle}</span>
-                <span className={`feed-item-level level-${item.level.toLowerCase()}`}>{item.level} REP</span>
-                <span className="feed-item-time">now</span>
+        {error && (
+          <div className="feed-error">
+            {error}
+          </div>
+        )}
+        {loading && messages.length === 0 && (
+          <div className="feed-loading">Loading feed…</div>
+        )}
+        {!loading && messages.length === 0 && !error && (
+          <div className="feed-empty">No messages yet. Run the scraper with --supabase.</div>
+        )}
+        {messages.map((msg) => {
+          const level = messageToLevel(msg);
+          const displayText = msg.text_translated || msg.text;
+          const handle = msg.channel_username ? `@${msg.channel_username}` : '';
+          const avatar = (msg.channel_title || msg.channel_username || '?').slice(0, 2).toUpperCase();
+          return (
+            <article key={msg.id} className="feed-item">
+              <div className="feed-item-header">
+                <div className="feed-item-avatar">{avatar}</div>
+                <div className="feed-item-meta">
+                  <span className="feed-item-sender">{msg.channel_title || msg.channel_username || 'Telegram'}</span>
+                  <span className="feed-item-handle">{handle}</span>
+                  <span className={`feed-item-level level-${level.toLowerCase()}`}>{level} REP</span>
+                  <span className="feed-item-time">{formatTimeAgo(msg.date)}</span>
+                </div>
               </div>
-            </div>
-            <div className="feed-item-tags">
-              {item.tags.map((tag) => (
-                <span key={tag} className={`feed-tag feed-tag-${tag.toLowerCase()}`}>{tag}</span>
-              ))}
-            </div>
-            <p className="feed-item-text">{item.text}</p>
-            <a href={item.link} className="feed-item-link">#Betterview found 5 markets ▼</a>
-          </article>
-        ))}
+              <div className="feed-item-tags">
+                <span className={`feed-tag feed-tag-${level.toLowerCase()}`}>{level}</span>
+                <span className="feed-tag feed-tag-telegram">TELEGRAM</span>
+              </div>
+              <p className="feed-item-text">{displayText}</p>
+              {msg.url && (
+                <a href={msg.url} target="_blank" rel="noopener noreferrer" className="feed-item-link">
+                  View on Telegram →
+                </a>
+              )}
+            </article>
+          );
+        })}
       </div>
     </aside>
   );

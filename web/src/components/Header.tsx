@@ -7,7 +7,7 @@ type NavTab = (typeof NAV)[number];
 
 function LogoIcon() {
   return (
-    <svg className="header-logo" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <svg className="header-logo" width="64" height="64" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
       <defs>
         <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#93c5fd" />
@@ -35,33 +35,20 @@ export function Header() {
           <LogoIcon />
         )}
         <BetterviewWordmark className="header-wordmark" />
+        <nav className="header-nav">
+          {NAV.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`header-nav-btn ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
       </div>
-      <nav className="header-nav">
-        {NAV.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={`header-nav-btn ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </nav>
       <div className="header-right">
-        <div className="header-search-wrap">
-          <span className="header-search-icon" aria-hidden>⌕</span>
-          <input
-            type="search"
-            placeholder="Search data sources"
-            className="header-search"
-            aria-label="Search data sources"
-          />
-        </div>
-        <button type="button" className="header-wallet">
-          <span className="header-wallet-icon" aria-hidden>◉</span>
-          Setup Trading Wallet
-        </button>
         <div className="header-stats">
           <span className="header-signals">22 ACTIVE SIGNALS</span>
           <span className="header-update">{lastUpdate.toLocaleTimeString()} LAST UPDATE</span>

@@ -1,2 +1,3 @@
-ode telethon
+telethon
 deep-translator
+supabase

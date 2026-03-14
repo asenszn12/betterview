@@ -342,6 +342,43 @@ def write_jsonl(path: str, messages: Iterable[ScrapedMessage]) -> None:
             f.write(json.dumps(asdict(msg), ensure_ascii=False) + "\n")
 
 
+def upload_to_supabase(messages: List[ScrapedMessage]) -> None:
+    """Upsert scraped messages to Supabase. Requires SUPABASE_URL and SUPABASE_SERVICE_KEY in env."""
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+    if not url or not key:
+        print(
+            "[supabase] SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_KEY) required. Skip upload.",
+            file=sys.stderr,
+        )
+        return
+    try:
+        from supabase import create_client
+    except ImportError:
+        print("[supabase] pip install supabase. Skip upload.", file=sys.stderr)
+        return
+    client = create_client(url, key)
+    rows = []
+    for m in messages:
+        rows.append({
+            "channel_id": m.channel_id,
+            "channel_username": m.channel_username,
+            "channel_title": m.channel_title,
+            "message_id": m.message_id,
+            "date": m.date,
+            "text": m.text,
+            "text_translated": m.text_translated,
+            "views": m.views,
+            "forwards": m.forwards,
+            "url": m.url,
+        })
+    try:
+        client.table("telegram_messages").upsert(rows, on_conflict="channel_id,message_id").execute()
+        print(f"[supabase] Upserted {len(rows)} messages.")
+    except Exception as e:
+        print(f"[supabase] Upload failed: {e}", file=sys.stderr)
+
+
 def write_csv(path: str, messages: Iterable[ScrapedMessage]) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     fieldnames = [
@@ -373,6 +410,7 @@ async def run_scraper(
     output_path: str,
     output_format: str,
     translate: bool = False,
+    supabase: bool = False,
 ) -> None:
     all_channels: List[str] = list(seed_channels)
 
@@ -420,6 +458,9 @@ async def run_scraper(
         raise ValueError(f"Unsupported output format: {output_format}")
 
     print(f"[main] Saved results to '{output_path}' in {output_format.upper()} format.")
+
+    if supabase:
+        upload_to_supabase(all_results)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -514,6 +555,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Requires: pip install deep-translator. Adds 'text_translated' to output."
         ),
     )
+    parser.add_argument(
+        "--supabase",
+        action="store_true",
+        help=(
+            "Upload scraped messages to Supabase. Set SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_KEY) in .env. "
+            "Run supabase/schema.sql in your project first."
+        ),
+    )
 
     return parser
 
@@ -541,6 +590,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     print(f"[config] Discovery enabled: {not args.no_discovery}")
     print(f"[config] Output: {args.output} ({args.format})")
     print(f"[config] Translate to English: {args.translate}")
+    print(f"[config] Upload to Supabase: {args.supabase}")
     if args.translate and _get_translator() is None:
         print("WARNING: --translate set but deep_translator not installed. Run: pip install deep-translator", file=sys.stderr)
 
@@ -556,6 +606,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             output_path=args.output,
             output_format=args.format,
             translate=args.translate,
+            supabase=args.supabase,
         )
     )
     elapsed = time.time() - start

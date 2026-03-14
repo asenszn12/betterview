@@ -1,5 +1,7 @@
 .feed-panel {
-  width: 380px;
+  width: 33.333vw;
+  min-width: 280px;
+  max-width: 480px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -105,6 +107,19 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.feed-loading,
+.feed-empty,
+.feed-error {
+  padding: 16px;
+  text-align: center;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.feed-error {
+  color: var(--critical);
 }
 
 .feed-item {
