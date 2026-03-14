@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BetterviewWordmark } from './BetterviewWordmark';
 import './Header.css';
 
-export const NAV = ['TERMINAL', 'FEED', 'MONITOR'] as const;
+export const NAV = ['TERMINAL', 'MONITOR'] as const;
 export type NavTab = (typeof NAV)[number];
 
 interface HeaderProps {
