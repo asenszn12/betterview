@@ -1,0 +1,104 @@
+.dome-container {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, rgba(15, 23, 42, 0.7) 0%, var(--bg-deep) 65%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.dome-scene {
+  position: relative;
+  width: 280px;
+  height: 200px;
+  perspective: 400px;
+  --dome-rotate: 0deg;
+}
+
+.dome-hemisphere {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--dome-rotate)) rotateX(25deg);
+}
+
+.dome-hemisphere::before {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 120px;
+  left: 50%;
+  top: 50%;
+  margin-left: -100px;
+  margin-top: -60px;
+  background: radial-gradient(ellipse 100% 80% at 50% 30%, rgba(30, 41, 59, 0.9) 0%, rgba(13, 15, 20, 0.95) 60%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: inset 0 0 60px rgba(96, 165, 250, 0.08), 0 0 80px rgba(0, 0, 0, 0.4);
+}
+
+.dome-grid {
+  position: absolute;
+  width: 200px;
+  height: 120px;
+  left: 50%;
+  top: 50%;
+  margin-left: -100px;
+  margin-top: -60px;
+  background-image:
+    linear-gradient(to right, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+  background-size: 20px 15px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.dome-glow {
+  position: absolute;
+  width: 120px;
+  height: 60px;
+  left: 50%;
+  top: 35%;
+  margin-left: -60px;
+  margin-top: -30px;
+  background: radial-gradient(ellipse at center, rgba(96, 165, 250, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dome-datapoint {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dome-datapoint-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.7);
+  animation: dome-pulse 2s ease-in-out infinite;
+}
+
+.dome-datapoint-label {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-orange);
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(251, 146, 60, 0.4);
+}
+
+@keyframes dome-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.1); }
+}

@@ -1,0 +1,73 @@
+import { useState } from 'react';
+import { BetterviewWordmark } from './BetterviewWordmark';
+import './Header.css';
+
+const NAV = ['TERMINAL', 'FEED', 'MONITOR'] as const;
+type NavTab = (typeof NAV)[number];
+
+function LogoIcon() {
+  return (
+    <svg className="header-logo" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <defs>
+        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#93c5fd" />
+          <stop offset="100%" stopColor="#a78bfa" />
+        </linearGradient>
+      </defs>
+      <path d="M14 24C8 18 4 14 4 10a6 6 0 0112 0c0 4-4 8-10 14z" fill="url(#logoGrad)" opacity="0.95" />
+      <ellipse cx="11" cy="11" rx="3" ry="2.2" fill="#1e1b4b" />
+      <path d="M8 11c0-1 1.5-2 3-2s3 1 3 2" stroke="#a78bfa" strokeWidth="0.8" fill="none" />
+    </svg>
+  );
+}
+
+export function Header() {
+  const [activeTab, setActiveTab] = useState<NavTab>('TERMINAL');
+  const [lastUpdate] = useState(() => new Date());
+  const [logoError, setLogoError] = useState(false);
+
+  return (
+    <header className="terminal-header">
+      <div className="header-left">
+        {!logoError ? (
+          <img src="/logo.png" alt="" className="header-logo" onError={() => setLogoError(true)} />
+        ) : (
+          <LogoIcon />
+        )}
+        <BetterviewWordmark className="header-wordmark" />
+      </div>
+      <nav className="header-nav">
+        {NAV.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={`header-nav-btn ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
+      <div className="header-right">
+        <div className="header-search-wrap">
+          <span className="header-search-icon" aria-hidden>⌕</span>
+          <input
+            type="search"
+            placeholder="Search data sources"
+            className="header-search"
+            aria-label="Search data sources"
+          />
+        </div>
+        <button type="button" className="header-wallet">
+          <span className="header-wallet-icon" aria-hidden>◉</span>
+          Setup Trading Wallet
+        </button>
+        <div className="header-stats">
+          <span className="header-signals">22 ACTIVE SIGNALS</span>
+          <span className="header-update">{lastUpdate.toLocaleTimeString()} LAST UPDATE</span>
+          <button type="button" className="header-refresh" aria-label="Refresh">↻</button>
+        </div>
+      </div>
+    </header>
+  );
+}
