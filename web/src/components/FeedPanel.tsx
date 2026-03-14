@@ -21,7 +21,7 @@ function FeedItemCard({
   channelName: string;
   channelUrl: string | null;
   isLong: boolean;
-  formatTimeAgo: (iso: string) => string;
+  formatTimeAgo: (msg: TelegramMessage) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const text = expanded || !isLong ? displayText : displayText.slice(0, MAX_TEXT_PREVIEW) + (displayText.length > MAX_TEXT_PREVIEW ? '…' : '');
@@ -42,7 +42,7 @@ function FeedItemCard({
             <span className="feed-item-sender">{channelName}</span>
           )}
           <span className={`feed-item-level level-${level.toLowerCase()}`}>{level}</span>
-          <span className="feed-item-time">{formatTimeAgo(msg.date)}</span>
+          <span className="feed-item-time" title={msg.date || msg.created_at || ''}>{formatTimeAgo(msg)}</span>
         </div>
       </div>
       <div className="feed-item-tags">
@@ -74,17 +74,37 @@ function FeedItemCard({
   return <article className="feed-item">{content}</article>;
 }
 
-function formatTimeAgo(iso: string): string {
+function parseSupabaseTime(s: string | null | undefined): number | null {
+  if (!s || typeof s !== 'string') return null;
+  const trimmed = s.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(' ', 'T');
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.getTime();
+}
+
+function formatTimeAgo(msg: TelegramMessage): string {
   try {
-    const d = new Date(iso);
-    const now = new Date();
-    const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
-    if (sec < 60) return 'now';
-    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-    return `${Math.floor(sec / 86400)}d`;
+    // Use message post time (date) from Supabase; fallback to created_at (when we ingested it)
+    const dateMs = parseSupabaseTime(msg.date) ?? parseSupabaseTime(msg.created_at);
+    if (dateMs == null) return 'just now';
+    const now = Date.now();
+    let sec = Math.floor((now - dateMs) / 1000);
+    if (sec < 0) sec = 0;
+    if (sec < 60) return 'just now';
+    if (sec < 3600) {
+      const mins = Math.floor(sec / 60);
+      return mins === 1 ? '1 min ago' : `${mins} min ago`;
+    }
+    if (sec < 86400) {
+      const hrs = Math.floor(sec / 3600);
+      return hrs === 1 ? '1 hr ago' : `${hrs} hr ago`;
+    }
+    const days = Math.floor(sec / 86400);
+    return days === 1 ? '1 day ago' : `${days} days ago`;
   } catch {
-    return 'now';
+    return 'just now';
   }
 }
 
@@ -95,10 +115,14 @@ function messageToLevel(_m: TelegramMessage): 'CRITICAL' | 'HIGH' | 'LOW' {
   return 'LOW';
 }
 
+const REFETCH_INTERVAL_MS = 60 * 1000; // 1 min – pull new messages from Supabase
+const RECENCY_TICK_MS = 60 * 1000;      // 1 min – re-render "X min ago" so it updates
+
 export function FeedPanel() {
   const [messages, setMessages] = useState<TelegramMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!supabase) {
@@ -129,7 +153,7 @@ export function FeedPanel() {
       setError(null);
       const { data, error: e } = await client
         .from('telegram_messages')
-        .select('*')
+        .select('id, channel_id, channel_username, channel_title, message_id, date, text, text_translated, views, forwards, url, created_at')
         .order('date', { ascending: false })
         .limit(100);
       setLoading(false);
@@ -147,6 +171,14 @@ export function FeedPanel() {
     };
 
     fetchMessages();
+    const refetchTimer = setInterval(fetchMessages, REFETCH_INTERVAL_MS);
+    return () => clearInterval(refetchTimer);
+  }, []);
+
+  // Re-render recency labels every minute so "5 min ago" becomes "6 min ago"
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), RECENCY_TICK_MS);
+    return () => clearInterval(t);
   }, []);
 
   return (

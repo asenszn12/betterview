@@ -50,7 +50,6 @@ export function Header() {
       </div>
       <div className="header-right">
         <div className="header-stats">
-          <span className="header-signals">22 ACTIVE SIGNALS</span>
           <span className="header-update">{lastUpdate.toLocaleTimeString()} LAST UPDATE</span>
           <button type="button" className="header-refresh" aria-label="Refresh">↻</button>
         </div>
