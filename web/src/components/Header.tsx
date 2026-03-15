@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { BetterviewWordmark } from './BetterviewWordmark';
+import type { MonitorCountry } from './MonitorView';
 import './Header.css';
 
 export const NAV = ['TERMINAL', 'MONITOR'] as const;
 export type NavTab = (typeof NAV)[number];
 
+const MONITOR_OPTIONS: { value: MonitorCountry; label: string }[] = [
+  { value: 'iran', label: 'Iran' },
+  { value: 'israel', label: 'Israel' },
+  { value: 'ukraine', label: 'Ukraine' },
+];
+
 interface HeaderProps {
   activeTab?: NavTab;
   onTabChange?: (tab: NavTab) => void;
+  onMonitorCountry?: (country: MonitorCountry) => void;
 }
 
 function LogoIcon() {
@@ -26,12 +34,31 @@ function LogoIcon() {
   );
 }
 
-export function Header({ activeTab: controlledTab, onTabChange }: HeaderProps) {
+export function Header({ activeTab: controlledTab, onTabChange, onMonitorCountry }: HeaderProps) {
   const [internalTab, setInternalTab] = useState<NavTab>('TERMINAL');
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = onTabChange ?? setInternalTab;
   const [lastUpdate] = useState(() => new Date());
   const [logoError, setLogoError] = useState(false);
+  const [monitorDropdownOpen, setMonitorDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!monitorDropdownOpen) return;
+    const close = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setMonitorDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [monitorDropdownOpen]);
+
+  const handleMonitorOption = (country: MonitorCountry) => {
+    setActiveTab('MONITOR');
+    onMonitorCountry?.(country);
+    setMonitorDropdownOpen(false);
+  };
 
   return (
     <header className="terminal-header">
@@ -43,16 +70,39 @@ export function Header({ activeTab: controlledTab, onTabChange }: HeaderProps) {
         )}
         <BetterviewWordmark className="header-wordmark" />
         <nav className="header-nav">
-          {NAV.map((tab) => (
+          <button
+            type="button"
+            className={`header-nav-btn ${activeTab === 'TERMINAL' ? 'active' : ''}`}
+            onClick={() => setActiveTab('TERMINAL')}
+          >
+            TERMINAL
+          </button>
+          <div className="header-monitor-wrap" ref={dropdownRef}>
             <button
-              key={tab}
               type="button"
-              className={`header-nav-btn ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              className={`header-nav-btn header-nav-btn-monitor ${activeTab === 'MONITOR' ? 'active' : ''} ${monitorDropdownOpen ? 'open' : ''}`}
+              onClick={() => setMonitorDropdownOpen((o) => !o)}
+              aria-expanded={monitorDropdownOpen}
+              aria-haspopup="true"
             >
-              {tab}
+              MONITOR <span className="header-monitor-chevron" aria-hidden>▼</span>
             </button>
-          ))}
+            {monitorDropdownOpen && (
+              <div className="header-monitor-dropdown" role="menu">
+                {MONITOR_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="menuitem"
+                    className="header-monitor-option"
+                    onClick={() => handleMonitorOption(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
       <div className="header-right">
