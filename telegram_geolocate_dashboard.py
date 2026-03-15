@@ -172,6 +172,46 @@ def extract_locations(nlp, text: str) -> list[str]:
     return out
 
 
+def pick_primary_location(nlp, text: str, locations: list[str], severity: str) -> Optional[str]:
+    """
+    Pick the single most relevant location for this message so we don't place the same
+    message in multiple countries. Prefer a place that appears in the same sentence as
+    an event keyword (e.g. 'explosion in Kyiv' -> Kyiv). Otherwise use the first location.
+    """
+    if not locations:
+        return None
+    if len(locations) == 1:
+        return locations[0]
+
+    doc = nlp(text)
+    lower = text.lower()
+    # Keywords that indicate "where the event happened" when in same sentence as a location
+    event_keywords = KEYWORDS_CRITICAL + KEYWORDS_HIGH + ["in", "at", "near", "outside", "inside"]
+
+    # Find sentences (rough split) and which locations appear in which sentence
+    sentences = [s.strip() for s in re.split(r"[.!?]\s+", text) if s.strip()]
+    best_location = None
+    best_score = -1
+
+    for loc in locations:
+        score = 0
+        # Prefer location that appears in a sentence containing an event keyword
+        for sent in sentences:
+            if loc not in sent:
+                continue
+            sent_lower = sent.lower()
+            if any(kw in sent_lower for kw in event_keywords):
+                score += 2
+            # First mentioned location often is the primary (e.g. "Kyiv" before "Russia")
+            if text.find(loc) < (len(text) // 2):
+                score += 1
+        if score > best_score:
+            best_score = score
+            best_location = loc
+
+    return best_location if best_location else locations[0]
+
+
 # ---------------------------------------------------------------------------
 # 3. Risk analysis (keyword-based)
 # ---------------------------------------------------------------------------
@@ -251,6 +291,7 @@ def push_to_supabase(geo_messages: list[GeoMessage]) -> None:
             "longitude": g.lon,
             "severity": g.severity,
             "telegram_url": g.telegram_url or None,
+            "location_label": g.location_text,
         })
 
     try:
@@ -264,6 +305,32 @@ def push_to_supabase(geo_messages: list[GeoMessage]) -> None:
 # ---------------------------------------------------------------------------
 # 6. Map (Folium + MarkerCluster)
 # ---------------------------------------------------------------------------
+
+def _popup_card_html(g: GeoMessage) -> str:
+    """Build a single styled card HTML for the marker popup (no raw text; only this div is used)."""
+    severity_colors = {"critical": "#c0392b", "high": "#d35400", "low": "#2980b9"}
+    header_color = severity_colors.get(g.severity, "#2980b9")
+    msg_escaped = html.escape(g.text[:500])
+    if len(g.text) > 500:
+        msg_escaped += "…"
+    link_block = ""
+    if g.telegram_url:
+        link_block = (
+            f"<div style='margin-bottom:8px;'>"
+            f"<a href='{html.escape(g.telegram_url)}' target='_blank' rel='noopener noreferrer' "
+            "style='color:#22d3ee;text-decoration:none;font-size:12px;'>View on Telegram</a></div>"
+        )
+    return (
+        f"<div style='max-width:380px;min-width:200px;padding:12px;border-radius:8px;"
+        f"background:rgba(30,30,35,0.98);border:1px solid rgba(255,255,255,0.12);"
+        f"font-family:system-ui,sans-serif;font-size:13px;line-height:1.45;color:#e2e8f0;'>"
+        f"<div style='font-weight:700;letter-spacing:0.05em;font-size:11px;margin-bottom:8px;color:{header_color};'>"
+        f"{html.escape(g.severity.upper())}</div>"
+        f"{link_block}"
+        f"<p style='margin:0;word-break:break-word;'>{msg_escaped}</p>"
+        f"</div>"
+    )
+
 
 def build_map(geo_messages: list[GeoMessage], output_path: str = "telegram_threat_map.html") -> None:
     """Create interactive Folium map with MarkerCluster and color-coded markers."""
@@ -280,21 +347,10 @@ def build_map(geo_messages: list[GeoMessage], output_path: str = "telegram_threa
 
     for g in geo_messages:
         color = colors.get(g.severity, "blue")
-        link_html = ""
-        if g.telegram_url:
-            link_html = f"<a href='{html.escape(g.telegram_url)}' target='_blank' rel='noopener'>View on Telegram</a><br>"
-        popup_html = (
-            f"<div style='max-width:320px;'>"
-            f"<strong>{g.severity.upper()}</strong> · {g.location_text}<br>"
-            f"<small>{g.timestamp.strftime('%Y-%m-%d %H:%M UTC')}</small><br>"
-            f"{link_html}"
-            f"<p style='margin-top:8px;'>{html.escape(g.text[:500])}"
-            + ("…" if len(g.text) > 500 else "")
-            + "</p></div>"
-        )
+        popup_html = _popup_card_html(g)
         folium.Marker(
             [g.lat, g.lon],
-            popup=folium.Popup(popup_html, max_width=360),
+            popup=folium.Popup(popup_html, max_width=400),
             icon=folium.Icon(color=color, icon="info-sign"),
         ).add_to(cluster)
 
@@ -340,26 +396,29 @@ async def main() -> None:
 
     for text, date, channel_name, message_id, channel_username in all_messages:
         locations = extract_locations(nlp, text)
+        if not locations:
+            continue
         severity = classify_severity(text)
+        primary_loc = pick_primary_location(nlp, text, locations, severity)
+        if not primary_loc:
+            continue
+        coords = geocode_location(primary_loc, delay_seconds=1.0, cache=geocode_cache)
+        if coords is None:
+            continue
+        lat, lon = coords
         telegram_url = f"https://t.me/{channel_username}/{message_id}" if channel_username else ""
-
-        for loc in locations:
-            coords = geocode_location(loc, delay_seconds=1.0, cache=geocode_cache)
-            if coords is None:
-                continue
-            lat, lon = coords
-            geo_messages.append(
-                GeoMessage(
-                    text=text,
-                    timestamp=date,
-                    channel=channel_name,
-                    location_text=loc,
-                    lat=lat,
-                    lon=lon,
-                    severity=severity,
-                    telegram_url=telegram_url,
-                )
+        geo_messages.append(
+            GeoMessage(
+                text=text,
+                timestamp=date,
+                channel=channel_name,
+                location_text=primary_loc,
+                lat=lat,
+                lon=lon,
+                severity=severity,
+                telegram_url=telegram_url,
             )
+        )
 
     await client.disconnect()
 

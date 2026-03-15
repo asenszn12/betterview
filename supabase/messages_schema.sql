@@ -8,6 +8,7 @@ create table if not exists public.messages (
   longitude double precision not null,
   severity text not null default 'low' check (severity in ('critical', 'high', 'low')),
   telegram_url text,
+  location_label text,
   created_at timestamptz default now()
 );
 
@@ -23,8 +24,9 @@ create policy "Allow public read"
 -- Allow service role (Python script) to insert; anon can only read.
 -- Scraper uses SUPABASE_SERVICE_KEY (service_role), so inserts work without a policy for anon.
 
--- If table already exists without telegram_url, add it:
+-- If table already exists, add new columns:
 -- alter table public.messages add column if not exists telegram_url text;
+-- alter table public.messages add column if not exists location_label text;
 
 -- Optional: realtime so the globe updates live when the script inserts
 -- alter publication supabase_realtime add table public.messages;

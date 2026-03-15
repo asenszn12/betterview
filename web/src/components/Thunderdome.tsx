@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 import { supabase } from '../lib/supabase';
+import { TelegramIcon } from './TelegramIcon';
 import './Thunderdome.css';
 
 // ---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ export interface ThunderdomeMessage {
   message_text: string;
   severity: MessageSeverity;
   telegram_url?: string | null;
+  location_label?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +174,25 @@ export function Thunderdome() {
     return () => observer.disconnect();
   }, []);
 
+  // Hide any library-rendered point label (raw text block) so only our card is visible
+  useEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return;
+    const hideRawLabel = () => {
+      wrap.querySelectorAll('div').forEach((el) => {
+        const html = el as HTMLElement;
+        if (html.classList?.contains('thunderdome-signal-tooltip') || html.closest?.('.thunderdome-signal-tooltip')) return;
+        const style = window.getComputedStyle(html);
+        if (style.position !== 'fixed' && style.position !== 'absolute') return;
+        const text = (html.textContent || '').trim();
+        if (text.length > 80) html.style.setProperty('display', 'none');
+      });
+    };
+    hideRawLabel();
+    const t = setInterval(hideRawLabel, 150);
+    return () => clearInterval(t);
+  }, []);
+
   // Initial fetch + real-time subscription to messages table
   useEffect(() => {
     const client = supabase;
@@ -183,7 +204,7 @@ export function Thunderdome() {
     const fetchMessages = async () => {
       const { data, error } = await client
         .from('messages')
-        .select('id, latitude, longitude, message_text, severity, telegram_url')
+        .select('id, latitude, longitude, message_text, severity, telegram_url, location_label')
         .limit(500);
 
       if (!error && data?.length) {
@@ -195,6 +216,7 @@ export function Thunderdome() {
             message_text: row.message_text ?? '',
             severity: (row.severity ?? 'low') as MessageSeverity,
             telegram_url: row.telegram_url ?? null,
+            location_label: row.location_label ?? null,
           }))
         );
       }
@@ -260,7 +282,7 @@ export function Thunderdome() {
         pointAltitude={0.1}
         pointRadius={0.5}
         pointResolution={12}
-        pointLabel={(d) => msg(d).message_text}
+        pointLabel={() => ''}
         pointsMerge={false}
         onPointHover={handlePointHover}
         // Pulsating rings: same dispersed coords; severity = ringColor, ringMaxRadius, ringRepeatPeriod
@@ -301,16 +323,27 @@ export function Thunderdome() {
           }}
           role="tooltip"
         >
-          <div className="thunderdome-signal-tooltip-severity">{hoveredMessage.severity}</div>
-          {hoveredMessage.telegram_url && (
-            <a
-              className="thunderdome-signal-tooltip-link"
-              href={hoveredMessage.telegram_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View on Telegram
-            </a>
+          <div className="thunderdome-signal-tooltip-severity">
+            <span>{hoveredMessage.severity}</span>
+            <span className="thunderdome-signal-tooltip-sep">•</span>
+            {hoveredMessage.telegram_url ? (
+              <a
+                className="thunderdome-signal-tooltip-telegram"
+                href={hoveredMessage.telegram_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View on Telegram"
+              >
+                <TelegramIcon className="thunderdome-signal-tooltip-telegram-icon" />
+              </a>
+            ) : (
+              <span className="thunderdome-signal-tooltip-telegram-placeholder" aria-hidden>
+                <TelegramIcon className="thunderdome-signal-tooltip-telegram-icon" />
+              </span>
+            )}
+          </div>
+          {hoveredMessage.location_label && (
+            <div className="thunderdome-signal-tooltip-location">Reported from: {hoveredMessage.location_label}</div>
           )}
           <div className="thunderdome-signal-tooltip-text">{hoveredMessage.message_text}</div>
         </div>
