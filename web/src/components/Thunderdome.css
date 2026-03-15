@@ -68,10 +68,13 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   font-size: 13px;
   line-height: 1.45;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .thunderdome-signal-tooltip-severity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -80,22 +83,56 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.thunderdome-signal-tooltip-sep {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+  user-select: none;
+}
+
+.thunderdome-signal-tooltip-telegram {
+  display: inline-flex;
+  color: #0088cc;
+  pointer-events: auto;
+}
+
+.thunderdome-signal-tooltip-telegram:hover {
+  color: #22d3ee;
+}
+
+.thunderdome-signal-tooltip-telegram-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.thunderdome-signal-tooltip-telegram-placeholder {
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.thunderdome-signal-tooltip-link {
+  display: inline-block;
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+.thunderdome-signal-tooltip-link:hover {
+  text-decoration: underline;
+}
+
+
+/* Hide the library’s point hover label (the big raw text block); only our card shows */
+.thunderdome-wrap [class*="point-label"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .thunderdome-signal-tooltip-text {
   color: rgba(255, 255, 255, 0.95);
   word-break: break-word;
-}
-
-/* Style tooltips rendered by react-globe.gl (pointLabel) */
-.thunderdome-wrap [class*="point-label"],
-.thunderdome-wrap [class*="label"] {
-  max-width: 280px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.9);
-  color: #e2e8f0;
-  font-size: 12px;
-  line-height: 1.4;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .thunderdome-hint {
